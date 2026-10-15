@@ -1,0 +1,21 @@
+{
+  "name": "pennywise",
+  "version": "0.1.0",
+  "private": "true",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:web\" \"npm:dev:api\"",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "build": "npm run build --workspace=apps/web && npm run build --workspace=apps/api",
+    "typecheck": "npm run typecheck --workspace=apps/web && npm run typecheck --workspace=apps/api",
+    "db:migrate": "tsx migrate.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6",
+    "typescript": "^6.0.3"
+  }
+}
