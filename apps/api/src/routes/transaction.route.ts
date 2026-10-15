@@ -3,7 +3,7 @@ import { z } from "zod";
 import { pool } from "../config/db.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
-export const transactionRouter = Router();
+const router = Router();
 
 const createSchema = z.object({
   type: z.enum(["income", "expense"]),
@@ -12,7 +12,9 @@ const createSchema = z.object({
   occurred_at: z.string().datetime({ offset: true }).optional(),
 });
 
-transactionRouter.get("/", async (_req, res) => {
+router.use(requireAuth);
+
+router.get("/", async (_req, res) => {
   try {
     const userId = res.locals.userId as string;
     const result = await pool.query(
@@ -48,7 +50,7 @@ transactionRouter.get("/", async (_req, res) => {
   }
 });
 
-transactionRouter.post("/", async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const parsed = createSchema.safeParse(req.body);
 
@@ -92,3 +94,5 @@ transactionRouter.post("/", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+export default router;

@@ -4,9 +4,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
 
-const rootDir = path.dirname(fileURLToPath(import.meta.url));
-const migrationsDir = path.join(rootDir, "database", "migrations");
-config({ path: path.join(rootDir, "apps", "api", ".env") });
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(currentDir, "../..");
+const migrationsDir = path.join(repoRoot, "database", "migrations");
+config({ path: path.join(currentDir, ".env") });
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -18,7 +19,7 @@ async function migrate() {
 
   try {
     await client.query(`
-            CREATE TABLE IF NOT EXISTS _migrations (
+            CREATE TABLE IF NOT EXISTS schema_migrations (
                 name TEXT PRIMARY KEY,
                 applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )

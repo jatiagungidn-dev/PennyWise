@@ -1,6 +1,6 @@
 import express from "express";
 import helmet from "helmet";
-import { transactionRouter } from "./routes/transaction.route.js";
+import transactionRouter from "./routes/transaction.route.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 
 const app = express();
@@ -11,6 +11,6 @@ app.get("/api/health", (_req, res) => {
   res.status(200).json({ service: "PennyWise API is running" });
 });
 
-app.use("/api/transactions", requireAuth, transactionRouter);
+app.use("/api/transactions", transactionRouter);
 
 export default app;

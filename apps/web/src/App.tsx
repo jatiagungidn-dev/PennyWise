@@ -1,122 +1,224 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState, type FormEvent } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "./lib/supabase";
+import "./App.css";
+
+type AuthMode = "signin" | "signup";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [session, setSession] = useState<Session | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [mode, setMode] = useState<AuthMode>("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mouted = true;
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mouted) return;
+
+      if (error) setError(error.message);
+      setSession(data.session);
+      setCheckingSession(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setCheckingSession(false);
+    });
+
+    return () => {
+      mouted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setMessage("");
+    setError("");
+
+    try {
+      if (mode === "signin") {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+
+        if (error) throw error;
+
+        if (!data.session) {
+          setMessage(
+            "Registration successful. Please check your email for confirmation",
+          );
+        }
+      }
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed sign out");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (checkingSession) {
+    return (
+      <main className="page">
+        <p className="muted">Checking account session...</p>
+      </main>
+    );
+  }
+
+  if (session) {
+    return (
+      <main className="page">
+        <section className="auth-card">
+          <div className="brand-mark" aria-hidden="true">
+            P
+          </div>
+          <p className="eyeb">PENNYWISE</p>
+          <h1>Welcome</h1>
+          <p className="muted">You are logged in as</p>
+          <p className="account-email">{session.user.email}</p>
+          <p className="notice">
+            Account is connected. We are creating your transactions
+          </p>
+          {error && <p className="error">{error}</p>}
+          <button
+            className="primary-button"
+            type="button"
+            onClick={handleSignOut}
+            disabled={loading}
+          >
+            {loading ? "Processing..." : "Exit"}
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <main className="page">
+      <section className="auth-card">
+        <div className="brand-mark" aria-hidden="true">
+          P
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+
+        <p className="eyebrow">PENNYWISE</p>
+        <h1>
+          {mode === "signin" ? "Manage your pennies" : "Start your journey"}
+        </h1>
+        <p className="muted">
+          {mode === "signin"
+            ? "Sign in to continue"
+            : "Create account to start manage your pennies"}
+        </p>
+
+        <div className="auth-tabs">
+          <button
+            type="button"
+            className={mode === "signin" ? "tab active" : "tab"}
+            onClick={() => {
+              setMode("signin");
+              setMessage("");
+              setError("");
+            }}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            className={mode === "signup" ? "tab active" : "tab"}
+            onClick={() => {
+              setMode("signup");
+              setMessage("");
+              setError("");
+            }}
+          >
+            Sign Up
+          </button>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+            required
+          />
+
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            autoComplete={
+              mode === "signin" ? "current-password" : "new-password"
+            }
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="8 characters"
+            minLength={8}
+            required
+          />
+
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+
+          {message && (
+            <p className="notice" role="status">
+              {message}
+            </p>
+          )}
+
+          <button className="primary-button" type="submit" disabled={loading}>
+            {loading
+              ? "Processing..."
+              : mode === "signin"
+                ? "Sign in"
+                : "Sign up"}
+          </button>
+        </form>
+
+        <p className="footer-note">Manage your pennies and dimmes.</p>
       </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    </main>
+  );
 }
 
-export default App
+export default App;
