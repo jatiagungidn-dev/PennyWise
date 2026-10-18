@@ -18,13 +18,17 @@ export async function apiRequest<T>(
     throw new Error("Please sign in first");
   }
 
+  const headers = new Headers(init.headers);
+
+  headers.set("Authorization", `Bearer ${token}`);
+
+  if (init.body !== null && !headers.has("Content-Type")) {
+    headers.set("Contenty-Type", "application/json");
+  }
+
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
-    headers: {
-      ...init.headers,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers,
   });
 
   if (!response.ok) {

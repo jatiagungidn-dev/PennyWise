@@ -1,7 +1,6 @@
 import express from "express";
 import helmet from "helmet";
 import transactionRouter from "./routes/transaction.route.js";
-import { requireAuth } from "./middleware/requireAuth.js";
 
 const app = express();
 app.use(helmet());

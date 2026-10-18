@@ -7,10 +7,17 @@ import { Pool } from "pg";
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDir, "../..");
 const migrationsDir = path.join(repoRoot, "database", "migrations");
+
 config({ path: path.join(currentDir, ".env") });
 
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl?.trim()) {
+  throw new Error("DATABASE_URL is not configured");
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
   ssl: { rejectUnauthorized: true },
 });
 
@@ -55,7 +62,12 @@ async function migrate() {
 
         console.log(`Applied ${file}`);
       } catch (err) {
-        await client.query("ROLLBACK");
+        try {
+          await client.query("ROLLBACK");
+        } catch (rollbackError) {
+          console.error("Migration rollback failed:", rollbackError);
+        }
+
         throw err;
       }
     }
@@ -66,10 +78,11 @@ async function migrate() {
   }
 }
 
-migrate()
-  .catch((err: unknown) => {
-    console.error("Database migration failed:", err);
-  })
-  .finally(async () => {
-    await pool.end();
-  });
+try {
+  await migrate();
+} catch (err: unknown) {
+  console.error("Database migration failed:", err);
+  process.exitCode = 1;
+} finally {
+  await pool.end();
+}
